@@ -16,3 +16,7 @@ Each example must be built from its own directory. You can build and flash in on
 `make flash`
 
 Once an example is flashed, you can use screen/minicom at 115200 baudrate to connect to the USART.
+
+For help regarding unicore-mx you can find the dev team on IRC on freenode, #unicore-mx.
+For questions or suggestions regarding this example code repository or the tutorials,
+feel free to either use the GitHub issues or hit up brabo on IRC, also #unicore-mx.
