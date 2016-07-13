@@ -12,6 +12,7 @@ programming STM32 microcontrollers using [unicore-mx](https://github.com/insane-
 
 ### Building:
 Each example must be built from its own directory. You can build and flash in one move using:
+
 `make flash`
 
 Once an example is flashed, you can use screen/minicom at 115200 baudrate to connect to the USART.
