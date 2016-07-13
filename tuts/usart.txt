@@ -1,0 +1,106 @@
+All copyright and related rights waived via CC0.
+
+This is the first part of our tutorial series on programming STM32 using unicore-mx.
+We'll be using the STM32F429i-discovery board throughout this series.
+In this part we show how to use USART.
+
+First is a very simple USART transmitter, and then we add interrupts and candy.
+In usart/ is the very simple version.
+In usart-irq/ interrupts and a simple ringbuffer are added and some convenience functions in lib/.
+Building each demo is to be done from its directory.
+You can use `make flash` or `make gdb` to flash or load gdb.
+
+
+Basic USART
+===========
+
+Generally speaking, our programs will follow these steps:
+- initialize clock
+- initialize subsystems
+- perform our task(s)
+
+Initializing the subsystems usually follows this pattern:
+- initialize clocks
+- initialize pins
+- configure the device settings
+- enable the device
+
+On STM32 microcontrollers, the clock system is called Reset and Clock Control (RCC).
+The API we use for the RCC subsytem is defined in the rcc.h header file in unicore-mx.
+Pin related config is aptly named General Purpose Input/Ouput (GPIO). Similar to the RCC subsystem,
+the header file we need to include for this API is gpio.h.
+Finally the USART API is defined in the usart.h header.
+
+If you want to use the board with the default power-on setting, initializing main clock is not required.
+In clock.c the main clock is set to 168Mhz in clock_init().
+For the main clock that's all folks!
+
+Next up is initializing the USART device according to the pattern just described. As you can see in
+usart.c first off we define an object for the USART to hold the options we want. Doing this allows the
+code itself to be agnostic of which usart device it is setting up, and of the settings.
+
+On this board USART1 TX can be used on port A, pin 9. First clocks are enabled for the USART1 device
+and the desired port. Then the pin is initialized. GPIO_MODE_AF is set to indicate we use an
+Alternate Function, the next line sets it to AF 4 since USART1 TX is defined as Alternate Function 4
+on this pin. Next the device is configured. Most interesting of these is the baudrate, which is set to
+115200, so when we connect screen or minicom to the right device, we need to set its baudrate to the same.
+
+An important part is that it defines _write. Doing so will override the libc's internal _write function that
+functions such as printf() use to write output, so this will allow us to simply use printf() from
+this point on. In effect, configuring the USART device for proper operation combined with overriding
+_write is everything needed for using basic USART.
+
+After the initialization main() prints something over the USART using printf() and we can see this in our
+screen/minicom session.
+
+This very simple mode of operation is not always desirable as this will block on any output.
+In a real world application you likely want this to happen in an asynchronous, non-blocking fashion.
+
+
+Interrupt-driven USART
+======================
+
+Luckily, we can use interrupts in order to achieve this.
+Interrupts can wake up ISRs, Interrupt Service Routines. In those you can define certain operations
+which, if done properly, allow us to have the code running, printf() something and continue,
+and then every time the hardware completed transfer of a byte, an interrupt will be generated,
+the ISR will be called, and in there the next byte transfer is initiated. In order to do this a simple
+ringbuffer can be used to buffer the output while the code continues.
+We have included a very basic ringbuffer in lib/rb.c for your convenience.
+
+Besides the basic configuration for the USART device interrupts for the USART device must be enabled.
+The subsystem that handles the interrupts on STM32 is the Nested Vector Interrupt Controller (NVIC).
+All that is required is to enable the interrupt for the USART1 device.
+A transmit ringbuffer is also initialized.
+
+Additionally an Interrupt Service Routine for the USART1 device is defined, usart1_isr().
+This basically is a wrapper around usart_isr() which does the real action.
+Later this can enable us to just define which USART we want to use and have the code work dynamically.
+
+The interrupt-driven sequence of events is as following:
+- printf() passes a string onto _write
+- _write adds the string to the transmit buffer
+- if the transmit buffer was empty before the _write, enable interrupts and write first byte
+- ISR gets called on every transmit complete
+- ISR writes next byte if more bytes to be written, else disables TX interrupts.
+
+In _write now things are done a bit different. First the number of used bytes in the transmit buffer is
+stored in a variable. Then the string is written into the transmit buffer. Next, if there were no bytes
+used, TX interrupts are enabled and the transfer is initiated by reading the first byte out of the transmit
+buffer and writing it into the USART data register. Once transmission is complete, an interrupt will wake
+up the ISR and the next byte can be read from the transmit buffer and written to the USART device.
+
+The ISR first checks what the interrupt source was. In this case it looks for interrupts that indicate
+transmission of a byte is complete. If this is the case, it checks if there are more bytes in the transmit
+buffer to transmit. If so, the next byte is read from the ringbuffer, and transmission initiated by writing
+it into the USART data register. If the ringbuffer is empty this means all bytes are written and
+interrupts are disabled.
+
+A second addition is in clock.c, namely systick setup and msleep()/mtime() functions. In clock_init()
+now the systicks are setup to be generated once every 168000 clock cycles, this is 1/1000th of the clock
+cycles per second the main clock generates and will generate a systick every millisecond. The systick handler
+increments a millisecond-counter, and from then on we can sleep in the code or, for example for logging
+purposes, get the number of milliseconds and be able to nicely timestamp logging output. As demo for nice log
+output we have also provided a convenience logging function in lib/common.c. In include/common.h we also
+define DBG() which uses loglevel 'D' and __FILE__ and __LINE__ preprocessor directives to output which line
+in which source file it is printing from. The 'D' loglevel can be suppressed by setting verbose to 0.

@@ -1,0 +1,61 @@
+### All copyright and related rights waived via CC0.
+
+LDSCRIPT = ../stm32f429i-discovery.ld
+
+LIBNAME		= ucmx_stm32f4
+DEFS		= -DSTM32F4
+
+FP_FLAGS	?= -mfloat-abi=hard -mfpu=fpv4-sp-d16
+ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
+
+PREFIX		?= arm-none-eabi
+
+CC		:= $(PREFIX)-gcc
+CXX		:= $(PREFIX)-g++
+LD		:= $(PREFIX)-gcc
+AR		:= $(PREFIX)-ar
+AS		:= $(PREFIX)-as
+OBJCOPY		:= $(PREFIX)-objcopy
+OBJDUMP		:= $(PREFIX)-objdump
+GDB		:= $(PREFIX)-gdb
+
+LIBPATHS := ./unicore-mx ../unicore-mx ../../unicore-mx ../../../unicore-mx
+
+UCMX_DIR := $(wildcard $(LIBPATHS:=/ucmx.sublime-project))
+UCMX_DIR := $(firstword $(dir $(UCMX_DIR)))
+
+ifeq ($(strip $(UCMX_DIR)),)
+$(warning Cannot find unicore-mx library in the standard search paths.)
+$(error Please specify it through UCMX_DIR variable!)
+endif
+endif
+
+ifeq ($(V),1)
+$(info Using $(UCMX_DIR) path to library)
+endif
+
+INCLUDE_DIR	= $(UCMX_DIR)/include
+C_INCLUDE_DIR	= ../include
+C_LIB_DIR	= ../lib
+LIB_DIR		= $(UCMX_DIR)/lib
+SCRIPT_DIR	= $(UCMX_DIR)/scripts
+
+CFLAGS		+= -Os -g
+CFLAGS		+= -Wextra -Wshadow -Wimplicit-function-declaration
+CFLAGS		+= -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes
+CFLAGS		+= -fno-common -ffunction-sections -fdata-sections
+
+CPPFLAGS	+= -MD
+CPPFLAGS	+= -Wall -Wundef
+CPPFLAGS	+= -I$(INCLUDE_DIR) -I$(C_INCLUDE_DIR) $(DEFS)
+
+LDFLAGS		+= --static -nostartfiles
+LDFLAGS		+= -L$(LIB_DIR)
+LDFLAGS		+= -T$(LDSCRIPT)
+LDFLAGS		+= -Wl,-Map=$(*).map
+LDFLAGS		+= -Wl,--gc-sections
+
+LDLIBS		+= -l$(LIBNAME)
+LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
+
+include ../Makefile.rules

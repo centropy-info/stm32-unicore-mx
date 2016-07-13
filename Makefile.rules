@@ -1,0 +1,24 @@
+### All copyright and related rights waived via CC0.
+
+all: elf
+
+gdb: elf
+	$(GDB) $(BINARY).elf
+
+elf: $(BINARY).elf
+
+flash: $(BINARY).bin
+	st-flash write $(BINARY).bin 0x08000000
+
+%.bin: %.elf
+	$(OBJCOPY) -Obinary $(*).elf $(*).bin
+
+%.elf %.map: $(OBJS) $(LDSCRIPT) $(LIB_DIR)/lib$(LIBNAME).a
+	$(LD) $(LDFLAGS) $(ARCH_FLAGS) $(OBJS) $(LDLIBS) -o $(*).elf
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(ARCH_FLAGS) -o $(*).o -c $(*).c
+
+clean:
+	$(RM) *.o *.d *.elf *.bin *.map ../lib/*.d ../lib/*.o
+

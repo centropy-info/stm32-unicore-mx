@@ -1,0 +1,20 @@
+*.d
+*.o
+*.bin
+*.hex
+*.list
+*.srec
+*.a
+*.elf
+*.stylecheck
+*.swp
+\#*
+.\#*
+*~
+*.map
+*.log
+*.pdf
+*.tag
+
+# cscope databases
+cscope.out
