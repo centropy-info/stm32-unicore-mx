@@ -28,7 +28,6 @@ ifeq ($(strip $(UCMX_DIR)),)
 $(warning Cannot find unicore-mx library in the standard search paths.)
 $(error Please specify it through UCMX_DIR variable!)
 endif
-endif
 
 ifeq ($(V),1)
 $(info Using $(UCMX_DIR) path to library)
